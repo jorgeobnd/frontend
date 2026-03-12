@@ -19,12 +19,22 @@ export class InventoryComponent implements OnInit {
   newProduct = { name: '', sku: '', price: 0 };
   isSubmitting = false;
 
+  // Estado para gestión de sucursales
+  isManagingBranch = false;
+  isEditingBranch = false;
+  branchForm: Branch = { id: 0, name: '', address: '' };
+  isBranchSubmitting = false;
+
   constructor(
     private apiService: ApiService,
     private cdr: ChangeDetectorRef
   ) {}
 
   ngOnInit(): void {
+    this.loadBranches();
+  }
+
+  loadBranches(): void {
     this.apiService.getBranches().subscribe({
       next: (data: any) => {
         if (Array.isArray(data)) {
@@ -70,7 +80,83 @@ export class InventoryComponent implements OnInit {
     }
   }
 
-  // --- Nueva Lógica de Creación ---
+  // --- Lógica de Gestión de Sucursales ---
+
+  openNewBranchForm(): void {
+    this.isManagingBranch = true;
+    this.isEditingBranch = false;
+    this.branchForm = { id: 0, name: '', address: '' };
+  }
+
+  openEditBranchForm(branch: Branch, event: Event): void {
+    event.stopPropagation(); // Evitar seleccionar la sucursal al hacer clic en editar
+    this.isManagingBranch = true;
+    this.isEditingBranch = true;
+    this.branchForm = { ...branch };
+  }
+
+  closeBranchForm(): void {
+    this.isManagingBranch = false;
+    this.isEditingBranch = false;
+    this.branchForm = { id: 0, name: '', address: '' };
+  }
+
+  saveBranch(): void {
+    if (!this.branchForm.name || !this.branchForm.address) return;
+
+    this.isBranchSubmitting = true;
+
+    if (this.isEditingBranch) {
+      this.apiService.updateBranch(this.branchForm.id, this.branchForm).subscribe({
+        next: (updatedBranch) => {
+          // Actualizar lista localmente
+          const index = this.branches.findIndex(b => b.id === updatedBranch.id);
+          if (index !== -1) {
+            this.branches[index] = updatedBranch;
+          }
+          this.closeBranchForm();
+          this.isBranchSubmitting = false;
+          this.cdr.detectChanges();
+        },
+        error: (err) => {
+          console.error('Error al actualizar sucursal:', err);
+          this.isBranchSubmitting = false;
+        }
+      });
+    } else {
+      this.apiService.createBranch(this.branchForm).subscribe({
+        next: (newBranch) => {
+          this.branches.push(newBranch);
+          this.closeBranchForm();
+          this.isBranchSubmitting = false;
+          this.cdr.detectChanges();
+        },
+        error: (err) => {
+          console.error('Error al crear sucursal:', err);
+          this.isBranchSubmitting = false;
+        }
+      });
+    }
+  }
+
+  deleteBranch(branchId: number, event: Event): void {
+    event.stopPropagation();
+    if (!confirm('¿Estás seguro de eliminar esta sucursal? Esta acción no se puede deshacer.')) return;
+
+    this.apiService.deleteBranch(branchId).subscribe({
+      next: () => {
+        this.branches = this.branches.filter(b => b.id !== branchId);
+        if (this.selectedBranchId === branchId) {
+          this.selectedBranchId = null;
+          this.inventory = [];
+        }
+        this.cdr.detectChanges();
+      },
+      error: (err) => console.error('Error al eliminar sucursal:', err)
+    });
+  }
+
+  // --- Nueva Lógica de Creación de Producto ---
 
   toggleCreateForm(): void {
     this.isCreatingProduct = !this.isCreatingProduct;
