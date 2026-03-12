@@ -12,9 +12,25 @@ export class ApiService {
 
   constructor(private http: HttpClient) {}
 
+  // --- BRANCHES ---
+
   getBranches(): Observable<Branch[]> {
     return this.http.get<Branch[]>(`${this.apiUrl}/branches`);
   }
+
+  createBranch(branch: Branch): Observable<Branch> {
+    return this.http.post<Branch>(`${this.apiUrl}/branches`, branch);
+  }
+
+  updateBranch(id: number, branch: Branch): Observable<Branch> {
+    return this.http.put<Branch>(`${this.apiUrl}/branches/${id}`, branch);
+  }
+
+  deleteBranch(id: number): Observable<void> {
+    return this.http.delete<void>(`${this.apiUrl}/branches/${id}`);
+  }
+
+  // --- INVENTORY ---
 
   getInventoryByBranch(branchId: number): Observable<InventoryItem[]> {
     return this.http.get<InventoryItem[]>(`${this.apiUrl}/inventory/branch/${branchId}`);
@@ -23,6 +39,8 @@ export class ApiService {
   updateStock(branchId: number, productId: number, stock: number): Observable<any> {
     return this.http.put(`${this.apiUrl}/inventory/branch/${branchId}/product/${productId}`, stock);
   }
+
+  // --- PRODUCTS ---
 
   createProduct(product: { name: string; sku: string; price: number }): Observable<any> {
     return this.http.post(`${this.apiUrl}/products`, product);
