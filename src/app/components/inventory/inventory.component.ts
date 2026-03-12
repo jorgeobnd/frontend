@@ -14,39 +14,35 @@ export class InventoryComponent implements OnInit {
   selectedBranchId: number | null = null;
   inventory: InventoryItem[] = [];
 
+  // Estado para creación de producto
+  isCreatingProduct = false;
+  newProduct = { name: '', sku: '', price: 0 };
+  isSubmitting = false;
+
   constructor(
     private apiService: ApiService,
-    private cdr: ChangeDetectorRef // Inyectamos el detector de cambios
+    private cdr: ChangeDetectorRef
   ) {}
 
   ngOnInit(): void {
     this.apiService.getBranches().subscribe({
       next: (data: any) => {
-        console.log('Datos recibidos del backend:', data);
-
-        // Validación robusta: Asegurar que sea un array
         if (Array.isArray(data)) {
           this.branches = data;
         } else if (data && typeof data === 'object') {
-          // Si devuelve un solo objeto, lo convertimos en array
           this.branches = [data];
         } else {
           this.branches = [];
         }
-
-        console.log('Branches procesadas:', this.branches);
-
-        // Forzar actualización de la vista
         this.cdr.detectChanges();
       },
-      error: (err) => {
-        console.error('Error al cargar sucursales:', err);
-      }
+      error: (err) => console.error('Error al cargar sucursales:', err)
     });
   }
 
   selectBranch(branchId: number): void {
     this.selectedBranchId = branchId;
+    this.isCreatingProduct = false; // Resetear formulario al cambiar sucursal
     this.loadInventory();
   }
 
@@ -55,11 +51,9 @@ export class InventoryComponent implements OnInit {
       this.apiService.getInventoryByBranch(this.selectedBranchId).subscribe({
         next: (data) => {
           this.inventory = data;
-          this.cdr.detectChanges(); // Forzar actualización también aquí
+          this.cdr.detectChanges();
         },
-        error: (err) => {
-          console.error('Error al cargar inventario:', err);
-        }
+        error: (err) => console.error('Error al cargar inventario:', err)
       });
     }
   }
@@ -70,11 +64,52 @@ export class InventoryComponent implements OnInit {
 
       this.apiService.updateStock(this.selectedBranchId, item.productId, item.stock)
         .subscribe({
-          next: () => {
-            console.log(`Stock actualizado: ${item.stock}`);
-          },
+          next: () => console.log(`Stock actualizado: ${item.stock}`),
           error: (err) => console.error('Error actualización:', err)
         });
     }
+  }
+
+  // --- Nueva Lógica de Creación ---
+
+  toggleCreateForm(): void {
+    this.isCreatingProduct = !this.isCreatingProduct;
+    if (!this.isCreatingProduct) {
+      this.resetForm();
+    }
+  }
+
+  createProduct(): void {
+    if (!this.newProduct.name || !this.newProduct.sku) return;
+
+    this.isSubmitting = true;
+    this.apiService.createProduct(this.newProduct).subscribe({
+      next: (createdProduct) => {
+        console.log('Producto creado:', createdProduct);
+
+        // Agregar a la tabla localmente (Optimistic UI)
+        // Como es nuevo, el stock en esta sucursal es 0
+        const newItem: InventoryItem = {
+          productId: createdProduct.id,
+          productName: createdProduct.name,
+          productSku: createdProduct.sku,
+          stock: 0
+        };
+
+        this.inventory.push(newItem);
+        this.resetForm();
+        this.isCreatingProduct = false;
+        this.isSubmitting = false;
+        this.cdr.detectChanges();
+      },
+      error: (err) => {
+        console.error('Error al crear producto:', err);
+        this.isSubmitting = false;
+      }
+    });
+  }
+
+  resetForm(): void {
+    this.newProduct = { name: '', sku: '', price: 0 };
   }
 }

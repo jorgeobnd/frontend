@@ -17,9 +17,14 @@
       <h3 class="text-lg font-medium text-gray-900 mb-4 px-1">Selecciona una Sucursal</h3>
 
       <!-- Debug: Si esto está vacío, no hay conexión con el backend -->
-      <div *ngIf="branches.length === 0" class="p-4 bg-yellow-50 border-l-4 border-yellow-400 text-yellow-700">
-        <p class="font-bold">⚠️ No se han cargado sucursales.</p>
-        <p class="text-sm">Verifica que el Backend (puerto 8080) esté corriendo y que no haya errores en la consola del navegador (F12).</p>
+      <div *ngIf="branches.length === 0" class="p-4 bg-yellow-50 border-l-4 border-yellow-400 text-yellow-700 mb-6 rounded-r-md shadow-sm">
+        <p class="font-bold flex items-center">
+          <svg class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          </svg>
+          No se han cargado sucursales.
+        </p>
+        <p class="text-sm ml-7 mt-1">Verifica que el Backend (puerto 8080) esté corriendo.</p>
       </div>
 
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -28,7 +33,11 @@
              [class.ring-2]="selectedBranchId === branch.id"
              [class.ring-blue-500]="selectedBranchId === branch.id"
              [class.bg-blue-50]="selectedBranchId === branch.id"
-             class="cursor-pointer bg-white overflow-hidden shadow rounded-lg hover:shadow-md transition-all duration-200 border border-gray-100 group">
+             class="cursor-pointer bg-white overflow-hidden shadow rounded-lg hover:shadow-md transition-all duration-200 border border-gray-100 group relative">
+
+          <!-- Indicador visual de selección -->
+          <div *ngIf="selectedBranchId === branch.id" class="absolute top-0 right-0 -mt-1 -mr-1 w-4 h-4 bg-blue-500 rounded-bl-lg"></div>
+
           <div class="px-5 py-5">
             <div class="flex items-center">
               <div class="flex-shrink-0 bg-blue-100 rounded-md p-3 group-hover:bg-blue-200 transition-colors">
@@ -36,8 +45,8 @@
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                 </svg>
               </div>
-              <div class="ml-4 truncate">
-                <dt class="text-sm font-medium text-gray-500 truncate uppercase tracking-wider">
+              <div class="ml-4 truncate w-full">
+                <dt class="text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Sucursal
                 </dt>
                 <dd class="mt-1 text-lg font-semibold text-gray-900 truncate">
@@ -54,60 +63,124 @@
     </div>
 
     <!-- Tabla de Inventario -->
-    <div *ngIf="selectedBranchId" class="bg-white shadow-xl rounded-2xl overflow-hidden animate-fade-in-up">
-      <div class="px-6 py-5 border-b border-gray-100 bg-gray-50 flex justify-between items-center">
-        <h3 class="text-lg leading-6 font-medium text-gray-900">
-          Inventario Actual
-        </h3>
-        <span class="px-3 py-1 text-xs font-semibold text-green-800 bg-green-100 rounded-full">
-          Edición en tiempo real
-        </span>
+    <div *ngIf="selectedBranchId" class="bg-white shadow-xl rounded-2xl overflow-hidden animate-fade-in-up transition-all duration-300">
+
+      <!-- Header de la Tabla con Botón de Acción -->
+      <div class="px-6 py-5 border-b border-gray-100 bg-gray-50 flex flex-col sm:flex-row justify-between items-center space-y-4 sm:space-y-0">
+        <div>
+          <h3 class="text-lg leading-6 font-medium text-gray-900 flex items-center">
+            Inventario Actual
+            <span class="ml-3 px-3 py-1 text-xs font-semibold text-green-800 bg-green-100 rounded-full">
+              Edición en tiempo real
+            </span>
+          </h3>
+          <p class="mt-1 text-sm text-gray-500">Gestiona el stock de esta sucursal.</p>
+        </div>
+
+        <button
+          (click)="toggleCreateForm()"
+          class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors">
+          <svg class="-ml-1 mr-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+          </svg>
+          {{ isCreatingProduct ? 'Cancelar Creación' : 'Nuevo Producto' }}
+        </button>
       </div>
 
+      <!-- Formulario de Creación (Expandible) -->
+      <div *ngIf="isCreatingProduct" class="bg-blue-50 px-6 py-6 border-b border-blue-100 animate-slide-down">
+        <h4 class="text-sm font-bold text-blue-800 uppercase tracking-wide mb-4">Agregar Nuevo Producto al Catálogo</h4>
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+
+          <div class="col-span-1 md:col-span-1">
+            <label for="new-name" class="block text-xs font-medium text-gray-700 mb-1">Nombre del Producto</label>
+            <input type="text" id="new-name" [(ngModel)]="newProduct.name" placeholder="Ej. Monitor 4K"
+              class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+          </div>
+
+          <div class="col-span-1 md:col-span-1">
+            <label for="new-sku" class="block text-xs font-medium text-gray-700 mb-1">SKU (Código)</label>
+            <input type="text" id="new-sku" [(ngModel)]="newProduct.sku" placeholder="Ej. MON-4K-01"
+              class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+          </div>
+
+          <div class="col-span-1 md:col-span-1">
+            <label for="new-price" class="block text-xs font-medium text-gray-700 mb-1">Precio ($)</label>
+            <input type="number" id="new-price" [(ngModel)]="newProduct.price" placeholder="0.00"
+              class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+          </div>
+
+          <div class="col-span-1 md:col-span-1 flex space-x-2">
+            <button (click)="createProduct()" [disabled]="!newProduct.name || !newProduct.sku || isSubmitting"
+              class="w-full inline-flex justify-center items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm">
+              <span *ngIf="!isSubmitting">Guardar</span>
+              <span *ngIf="isSubmitting" class="flex items-center">
+                <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                ...
+              </span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tabla -->
       <div class="overflow-x-auto">
         <table class="min-w-full divide-y divide-gray-200">
           <thead class="bg-gray-50">
             <tr>
-              <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/2">
                 Producto
               </th>
-              <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/4">
                 SKU
               </th>
-              <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th scope="col" class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-1/4">
                 Stock Disponible
               </th>
             </tr>
           </thead>
           <tbody class="bg-white divide-y divide-gray-200">
-            <tr *ngFor="let item of inventory" class="hover:bg-gray-50 transition-colors duration-150">
+            <tr *ngFor="let item of inventory" class="hover:bg-gray-50 transition-colors duration-150 group">
               <td class="px-6 py-4 whitespace-nowrap">
                 <div class="flex items-center">
-                  <div class="flex-shrink-0 h-10 w-10 bg-gray-100 rounded-full flex items-center justify-center text-gray-500 font-bold text-lg">
-                    {{ item.productName.charAt(0) }}
+                  <div class="flex-shrink-0 h-10 w-10 bg-gray-100 rounded-full flex items-center justify-center text-gray-500 font-bold text-lg border border-gray-200 group-hover:bg-blue-100 group-hover:text-blue-600 transition-colors">
+                    {{ item.productName.charAt(0).toUpperCase() }}
                   </div>
                   <div class="ml-4">
                     <div class="text-sm font-medium text-gray-900">{{ item.productName }}</div>
+                    <!-- Etiqueta opcional si es nuevo -->
+                    <span *ngIf="item.stock === 0" class="text-xs text-yellow-600 italic">Sin stock asignado</span>
                   </div>
                 </div>
               </td>
               <td class="px-6 py-4 whitespace-nowrap">
-                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-md bg-gray-100 text-gray-600 border border-gray-200">
+                <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-md bg-gray-100 text-gray-600 border border-gray-200 font-mono">
                   {{ item.productSku }}
                 </span>
               </td>
-              <td class="px-6 py-4 whitespace-nowrap">
-                <div class="relative w-32">
+              <td class="px-6 py-4 whitespace-nowrap text-center">
+                <div class="relative w-32 mx-auto">
                   <input
                     type="number"
                     min="0"
                     [(ngModel)]="item.stock"
                     (blur)="updateStock(item)"
                     (keyup.enter)="updateStock(item); $event.target.blur()"
-                    class="block w-full pl-3 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition duration-150 ease-in-out text-center font-bold text-gray-700"
+                    [class.text-gray-400]="item.stock === 0"
+                    [class.text-gray-900]="item.stock > 0"
+                    class="block w-full pl-3 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition duration-150 ease-in-out text-center font-bold"
                   />
-                  <!-- Indicador de guardado (opcional, requeriría lógica extra) -->
                 </div>
+              </td>
+            </tr>
+
+            <!-- Mensaje si no hay productos -->
+            <tr *ngIf="inventory.length === 0">
+              <td colspan="3" class="px-6 py-10 text-center text-gray-500 text-sm">
+                No hay productos en el catálogo. ¡Agrega el primero arriba!
               </td>
             </tr>
           </tbody>
@@ -115,13 +188,15 @@
       </div>
     </div>
 
-    <!-- Estado Vacío -->
-    <div *ngIf="!selectedBranchId && branches.length > 0" class="text-center py-20 bg-white rounded-lg border-2 border-dashed border-gray-300 mt-6">
-      <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-      </svg>
-      <h3 class="mt-2 text-sm font-medium text-gray-900">No hay sucursal seleccionada</h3>
-      <p class="mt-1 text-sm text-gray-500">Selecciona una de las tarjetas de arriba para gestionar su inventario.</p>
+    <!-- Estado Vacío (Sin Sucursal Seleccionada) -->
+    <div *ngIf="!selectedBranchId && branches.length > 0" class="text-center py-20 bg-white rounded-lg border-2 border-dashed border-gray-300 mt-6 animate-pulse-slow">
+      <div class="mx-auto h-16 w-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+        <svg class="h-8 w-8 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+        </svg>
+      </div>
+      <h3 class="mt-2 text-lg font-medium text-gray-900">No hay sucursal seleccionada</h3>
+      <p class="mt-1 text-sm text-gray-500">Haz clic en una de las tarjetas de arriba para comenzar a gestionar el inventario.</p>
     </div>
 
   </div>
