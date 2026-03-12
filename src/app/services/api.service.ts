@@ -23,4 +23,8 @@ export class ApiService {
   updateStock(branchId: number, productId: number, stock: number): Observable<any> {
     return this.http.put(`${this.apiUrl}/inventory/branch/${branchId}/product/${productId}`, stock);
   }
+
+  createProduct(product: { name: string; sku: string; price: number }): Observable<any> {
+    return this.http.post(`${this.apiUrl}/products`, product);
+  }
 }
