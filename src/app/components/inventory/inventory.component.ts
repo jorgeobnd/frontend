@@ -25,6 +25,11 @@ export class InventoryComponent implements OnInit {
   branchForm: Branch = { id: 0, name: '', address: '' };
   isBranchSubmitting = false;
 
+  // Estado para edición de producto
+  isEditingProduct = false;
+  editingProduct: any = { id: 0, name: '', sku: '', price: 0 };
+  isProductSubmitting = false;
+
   constructor(
     private apiService: ApiService,
     private cdr: ChangeDetectorRef
@@ -52,7 +57,8 @@ export class InventoryComponent implements OnInit {
 
   selectBranch(branchId: number): void {
     this.selectedBranchId = branchId;
-    this.isCreatingProduct = false; // Resetear formulario al cambiar sucursal
+    this.isCreatingProduct = false;
+    this.isEditingProduct = false; // Resetear edición
     this.loadInventory();
   }
 
@@ -89,7 +95,7 @@ export class InventoryComponent implements OnInit {
   }
 
   openEditBranchForm(branch: Branch, event: Event): void {
-    event.stopPropagation(); // Evitar seleccionar la sucursal al hacer clic en editar
+    event.stopPropagation();
     this.isManagingBranch = true;
     this.isEditingBranch = true;
     this.branchForm = { ...branch };
@@ -109,7 +115,6 @@ export class InventoryComponent implements OnInit {
     if (this.isEditingBranch) {
       this.apiService.updateBranch(this.branchForm.id, this.branchForm).subscribe({
         next: (updatedBranch) => {
-          // Actualizar lista localmente
           const index = this.branches.findIndex(b => b.id === updatedBranch.id);
           if (index !== -1) {
             this.branches[index] = updatedBranch;
@@ -141,7 +146,7 @@ export class InventoryComponent implements OnInit {
 
   deleteBranch(branchId: number, event: Event): void {
     event.stopPropagation();
-    if (!confirm('¿Estás seguro de eliminar esta sucursal? Esta acción no se puede deshacer.')) return;
+    if (!confirm('¿Estás seguro de eliminar esta sucursal?')) return;
 
     this.apiService.deleteBranch(branchId).subscribe({
       next: () => {
@@ -156,10 +161,11 @@ export class InventoryComponent implements OnInit {
     });
   }
 
-  // --- Nueva Lógica de Creación de Producto ---
+  // --- Nueva Lógica de Creación/Edición de Producto ---
 
   toggleCreateForm(): void {
     this.isCreatingProduct = !this.isCreatingProduct;
+    this.isEditingProduct = false; // Cerrar edición si se abre creación
     if (!this.isCreatingProduct) {
       this.resetForm();
     }
@@ -171,14 +177,11 @@ export class InventoryComponent implements OnInit {
     this.isSubmitting = true;
     this.apiService.createProduct(this.newProduct).subscribe({
       next: (createdProduct) => {
-        console.log('Producto creado:', createdProduct);
-
-        // Agregar a la tabla localmente (Optimistic UI)
-        // Como es nuevo, el stock en esta sucursal es 0
         const newItem: InventoryItem = {
           productId: createdProduct.id,
           productName: createdProduct.name,
           productSku: createdProduct.sku,
+          price: createdProduct.price,
           stock: 0
         };
 
@@ -192,6 +195,69 @@ export class InventoryComponent implements OnInit {
         console.error('Error al crear producto:', err);
         this.isSubmitting = false;
       }
+    });
+  }
+
+  // Métodos para Edición de Producto
+
+  openEditProductForm(item: InventoryItem): void {
+    this.isEditingProduct = true;
+    this.isCreatingProduct = false; // Cerrar creación si se abre edición
+    // Copiamos los datos del item seleccionado
+    this.editingProduct = {
+      id: item.productId,
+      name: item.productName,
+      sku: item.productSku,
+      price: item.price
+    };
+  }
+
+  cancelEditProduct(): void {
+    this.isEditingProduct = false;
+    this.editingProduct = { id: 0, name: '', sku: '', price: 0 };
+  }
+
+  saveEditedProduct(): void {
+    if (!this.editingProduct.name || !this.editingProduct.sku) return;
+
+    this.isProductSubmitting = true;
+
+    // Llamada al backend para actualizar el producto globalmente
+    this.apiService.updateProduct(this.editingProduct.id, this.editingProduct).subscribe({
+      next: (updatedProduct) => {
+        // Actualizar la lista localmente
+        const index = this.inventory.findIndex(item => item.productId === updatedProduct.id);
+        if (index !== -1) {
+          this.inventory[index].productName = updatedProduct.name;
+          this.inventory[index].productSku = updatedProduct.sku;
+          this.inventory[index].price = updatedProduct.price;
+        }
+
+        this.isProductSubmitting = false;
+        this.isEditingProduct = false;
+        this.cdr.detectChanges();
+      },
+      error: (err) => {
+        console.error('Error al actualizar producto:', err);
+        this.isProductSubmitting = false;
+      }
+    });
+  }
+
+  deleteProduct(item: InventoryItem): void {
+    if (!confirm(`¿Eliminar producto "${item.productName}" del catálogo global? Esto borrará su historial en TODAS las sucursales.`)) return;
+
+    this.apiService.deleteProduct(item.productId).subscribe({
+      next: () => {
+        // Remover de la lista local
+        this.inventory = this.inventory.filter(i => i.productId !== item.productId);
+        this.cdr.detectChanges();
+        // Si estaba editando este producto, cerrar el formulario
+        if (this.isEditingProduct && this.editingProduct.id === item.productId) {
+            this.cancelEditProduct();
+        }
+      },
+      error: (err) => console.error('Error al eliminar producto:', err)
     });
   }
 
